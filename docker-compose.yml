@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  telegram-bot:
+    build: .
+    container_name: movie-bot
+    restart: unless-stopped
+    volumes:
+      - ./favorites.json:/app/favorites.json
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Moscow
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
