@@ -211,7 +211,7 @@ def handle_favorite(call):
 
 
 if __name__ == '__main__':
-    print("🤖 Бот запущен...")
+    print("🤖 Бот запущен...  / тестовое изменение")
     try:
         bot.polling(non_stop=True, interval=1, timeout=20)
     except Exception as e:
