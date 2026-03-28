@@ -7,11 +7,11 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-lasted
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      users: actions/chekout@v3
+      uses: actions/checkout@v3
 
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.7.0
@@ -25,12 +25,12 @@ jobs:
 
     - name: Deploy to server
       run: |
-        ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           cd /opt/movie-bot
           git pull origin main
           docker-compose down
           docker-compose build --no-cache
           docker-compose up -d
           docker image prune -f
-          docker ps | grep movie-bot
+          docker logs --tail 20 movie-bot
         EOF
