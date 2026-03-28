@@ -1,0 +1,116 @@
+import telebot
+import requests
+import time
+from urllib.parse import quote
+from bs4 import BeautifulSoup
+
+bot = telebot.TeleBot('8768648504:AAF4FID-onwG6ygdhldAwa-feo3hvZwNoMI')
+
+
+def search_movie(movie_name):
+    search_url = f"https://v4.fanfilm4k.media/index.php?do=search&subaction=search&story={quote(movie_name)}"
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+    }
+
+    try:
+        print(f"Ищем: {movie_name}")
+        response = requests.get(search_url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        movie_cards = soup.find_all('article', class_='card')
+        movies = []
+
+        for card in movie_cards[:10]:
+            link_tag = card.find('a', href=True)
+            if link_tag:
+                link = link_tag.get('href')
+                if not link.startswith('http'):
+                    link = 'https://v4.fanfilm4k.media' + link
+
+                img_tag = card.find('img')
+                title = ''
+                poster = None
+
+                if img_tag:
+                    if img_tag.get('alt'):
+                        title = img_tag.get('alt').replace(' постер 4К', '').strip()
+                    if img_tag.get('src'):
+                        poster = img_tag.get('src')
+                        if not poster.startswith('http'):
+                            poster = 'https://v4.fanfilm4k.media' + poster
+
+                if not title and link_tag.text.strip():
+                    title = link_tag.text.strip()
+
+                if title:
+                    movies.append({'title': title, 'link': link, 'poster': poster})
+        return movies
+
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        return []
+
+
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    bot.send_message(
+        message.chat.id,
+        "🎬 Привет! Я бот для поиска фильмов на FanFilm4K\n\n"
+        "Просто напиши название фильма, и я пришлю ссылки с постерами!"
+    )
+
+
+@bot.message_handler(commands=['help'])
+def help_message(message):
+    bot.send_message(
+        message.chat.id,
+        "📖 Напиши название фильма, например: 'Матрица'"
+    )
+
+
+@bot.message_handler(content_types=['text'])
+def handle_message(message):
+    user_text = message.text.strip()
+
+    if user_text in ['/start', '/help']:
+        return
+
+    status_msg = bot.send_message(message.chat.id, f"🔍 Ищу '{user_text}'...")
+    movies = search_movie(user_text)
+    bot.delete_message(message.chat.id, status_msg.message_id)
+
+    if movies:
+        bot.send_message(message.chat.id, f"🎬 Найдено {len(movies)} фильмов по запросу '{user_text}':")
+
+        for i, movie in enumerate(movies, 1):
+            caption = f"{i}. 📺 {movie['title']}\n🔗 {movie['link']}"
+
+            if movie['poster']:
+                try:
+                    bot.send_photo(message.chat.id, movie['poster'], caption=caption)
+                except Exception as e:
+                    print(f"Ошибка отправки фото: {e}")
+                    bot.send_message(message.chat.id, caption)
+            else:
+                bot.send_message(message.chat.id, caption)
+            time.sleep(0.3)
+    else:
+        bot.send_message(
+            message.chat.id,
+            f"😕 Фильм '{user_text}' не найден.\n\n"
+            "Попробуй:\n"
+            "• Проверить орфографию\n"
+            "• Написать название на русском"
+        )
+
+
+if __name__ == '__main__':
+    print("🤖 Бот запущен...")
+    try:
+        bot.polling(non_stop=True, interval=1, timeout=20)
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        time.sleep(5)
